@@ -1,0 +1,8 @@
+{
+  "hostedzone": "Z1L0YFEKD6V7JY",
+  "patterns": {
+    "az": "{{.AutoScalingGroup}}.{{.AvailabilityZone}}.i.{{.EnvironmentName}}.foobar.com",
+    "region": "{{.AutoScalingGroup}}.{{.Region}}.i.{{.EnvironmentName}}.foobar.com"
+  },
+  "environment_name": "stg"
+}
