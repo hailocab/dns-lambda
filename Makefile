@@ -14,7 +14,7 @@ package:
 	mkdir -p ${BUILD_DIR}
 	cp pkg/index.js ${BUILD_DIR}/index.js
 	cp pkg/byline.js ${BUILD_DIR}/byline.js
-	zip ${BUILD_DIR}/archive.zip ${BUILD_DIR}/index.js ${BUILD_DIR}/byline.js ${BUILD_DIR}/config.json ${BUILD_DIR}/main
+	zip -j ${BUILD_DIR}/archive.zip ${BUILD_DIR}/index.js ${BUILD_DIR}/byline.js ${BUILD_DIR}/config.json ${BUILD_DIR}/main
 
 clean:
 	rm -rf ${BUILD_DIR}

@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"regexp"
 
 	"github.com/hailocab/dns-lambda/aws"
 	"github.com/hailocab/dns-lambda/cloudwatch"
@@ -14,13 +15,10 @@ import (
 
 func main() {
 	cloudwatch.HandleFunc(func(evt *cloudwatch.Event, ctx *apex.Context) error {
-		config, err := lambda.LoadConfig("examples/config.json")
+		config, err := lambda.LoadConfig("config.json")
 		if err != nil {
 			return err
 		}
-
-		// aws.DeleteRecord(config.HostedZone, "h2o-nonflow1-stg.eu-west-1b.i.stg.foobar.com.")
-		// return nil
 
 		asgName, ok := evt.Detail.Get("AutoScalingGroupName")
 		if !ok {
@@ -42,7 +40,14 @@ func main() {
 		}
 
 		azIPs := map[string][]string{}
-		allIPs := []string{}
+		var (
+			allIPs []string
+			role   string
+		)
+
+		roleRE := regexp.MustCompile(fmt.Sprintf("-%s", config.EnvironmentName))
+		role = roleRE.ReplaceAllLiteralString(asgName.(string), "")
+
 		for az, instances := range resource.InstancesByAvailabilityZone {
 			azIPs[az] = []string{}
 
@@ -56,6 +61,7 @@ func main() {
 			if ok {
 				dns, err := p.Parse(map[string]string{
 					"AutoScalingGroup": asgName.(string),
+					"Role":             role,
 					"AvailabilityZone": az,
 					"EnvironmentName":  config.EnvironmentName,
 				})
@@ -79,6 +85,7 @@ func main() {
 		if ok {
 			dns, err := p.Parse(map[string]string{
 				"AutoScalingGroup": asgName.(string),
+				"Role":             role,
 				"Region":           evt.Region,
 				"EnvironmentName":  config.EnvironmentName,
 			})
