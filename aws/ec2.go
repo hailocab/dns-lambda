@@ -5,7 +5,6 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/aws/aws-sdk-go/service/ec2"
-	// "github.com/k0kubun/pp"
 )
 
 // DescribeAvailabilityZones returns an array of availability zones for a region
@@ -23,6 +22,8 @@ func DescribeAvailabilityZones(region string) ([]string, error) {
 
 	return AZs, nil
 }
+
+func FindInstances(asgName string, region string) (*Resource, error) {}
 
 // FindHealthyAutoScalingGroupInstances returns a list of healthy instances for an ASG
 func FindHealthyAutoScalingGroupInstances(name string, region string) ([]string, error) {
@@ -47,8 +48,8 @@ func FindHealthyAutoScalingGroupInstances(name string, region string) ([]string,
 	return instances, nil
 }
 
-// FindInstances and hydrate them to a useful data structure
-func FindInstances(instances []string, region string) (*Resource, error) {
+// HydrateInstances and hydrate them to a useful data structure
+func HydrateInstances(instances []string, region string) (*Resource, error) {
 	azs, err := DescribeAvailabilityZones(region)
 	if err != nil {
 		return nil, err
