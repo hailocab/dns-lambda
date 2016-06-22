@@ -34,30 +34,46 @@ resource "aws_lambda_permission" "allow_cloudwatch" {
   source_arn    = "${aws_cloudwatch_event_rule.rule.arn}"
 }
 
-resource "aws_iam_role" "role" {
-  name = "dns_lambda"
+# resource "aws_iam_role" "role" {
 
-  assume_role_policy = <<EOF
-{
-  "Version": "2012-10-17",
-  "Statement": [
-    {
-      "Action": "sts:AssumeRole",
-      "Principal": {
-        "Service": "lambda.amazonaws.com"
-      },
-      "Effect": "Allow",
-      "Sid": ""
-    }
-  ]
-}
-EOF
-}
+#   name = "dns_lambda"
+
+#   assume_role_policy = <<EOF
+
+# {
+
+#   "Version": "2012-10-17",
+
+#   "Statement": [
+
+#     {
+
+#       "Action": "sts:AssumeRole",
+
+#       "Principal": {
+
+#         "Service": "lambda.amazonaws.com"
+
+#       },
+
+#       "Effect": "Allow",
+
+#       "Sid": ""
+
+#     }
+
+#   ]
+
+# }
+
+# EOF
+
+# }
 
 resource "aws_lambda_function" "dns_lambda" {
   filename         = "../build/archive.zip"
   function_name    = "dns_lambda"
-  role             = "${aws_iam_role.role.arn}"
+  role             = "arn:aws:iam::864806739507:role/lambda"
   handler          = "index.handle"
   source_code_hash = "${base64sha256(file(\"../build/archive.zip\"))}"
   runtime          = "nodejs4.3"
