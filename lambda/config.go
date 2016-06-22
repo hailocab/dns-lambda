@@ -12,9 +12,8 @@ var (
 
 // Config holds information about the service
 type Config struct {
-	HostedZone      string             `json:"hostedzone"`
-	Patterns        map[string]Pattern `json:"patterns"`
-	EnvironmentName string             `json:"environment_name"`
+	HostedZoneID    string `json:"hosted_zone_id"`
+	CreateIPRecords bool   `json:"create_ip_records"`
 }
 
 // ReadFromFile reads a file from disk
