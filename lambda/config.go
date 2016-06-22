@@ -7,13 +7,16 @@ import (
 )
 
 var (
+	// DefaultConfigFile path
 	DefaultConfigFile = "config.json"
 )
 
 // Config holds information about the service
 type Config struct {
-	HostedZoneID    string `json:"hosted_zone_id"`
-	CreateIPRecords bool   `json:"create_ip_records"`
+	HostedZoneID    string             `json:"hosted_zone_id"`
+	CreateIPRecords bool               `json:"create_ip_records"`
+	EnvironmentName string             `json:"environment_name"`
+	Patterns        map[string]Pattern `json:"patterns"`
 }
 
 // ReadFromFile reads a file from disk

@@ -23,7 +23,15 @@ func DescribeAvailabilityZones(region string) ([]string, error) {
 	return AZs, nil
 }
 
-func FindInstances(asgName string, region string) (*Resource, error) {}
+// FindInstances finds instances in an autoscaling group
+func FindInstances(asgName string, region string) (*Resource, error) {
+	instances, err := FindHealthyAutoScalingGroupInstances(asgName, region)
+	if err != nil {
+		return nil, err
+	}
+
+	return HydrateInstances(instances, region)
+}
 
 // FindHealthyAutoScalingGroupInstances returns a list of healthy instances for an ASG
 func FindHealthyAutoScalingGroupInstances(name string, region string) ([]string, error) {
@@ -99,10 +107,12 @@ func HydrateInstances(instances []string, region string) (*Resource, error) {
 	}, nil
 }
 
+// Resource represents data structures required for processing
 type Resource struct {
 	InstancesByAvailabilityZone map[string][]*Instance
 }
 
+// Instance holds instance specific data
 type Instance struct {
 	InstanceID       string
 	PrivateIPAddress string
