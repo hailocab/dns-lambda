@@ -17,6 +17,7 @@ type Config struct {
 	CreateIPRecords bool               `json:"create_ip_records"`
 	EnvironmentName string             `json:"environment_name"`
 	Patterns        map[string]Pattern `json:"patterns"`
+	Domain          string             `json:"domain"`
 }
 
 // ReadFromFile reads a file from disk

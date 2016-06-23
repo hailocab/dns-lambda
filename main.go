@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"strings"
 
 	"github.com/hailocab/dns-lambda/aws"
 	"github.com/hailocab/dns-lambda/lambda"
@@ -51,11 +52,41 @@ func main() {
 		}
 
 		if config.CreateIPRecords {
+			ip, err := aws.LookupIPAddress(details.EC2InstanceID, evt.Region)
+			if err != nil {
+				log.Errorf("Unable to find IP for %q: %v", details.EC2InstanceID, err)
+				return err
+			}
+
+			record := lambda.IPRecordPattern.Parse(map[string]string{
+				"IP":     strings.Replace(ip, ".", "-", -1),
+				"Region": evt.Region,
+				"Domain": config.Domain,
+			})
+
+			ipRecordConfig := &aws.IPRecordConfig{
+				Zone:       config.HostedZoneID,
+				Record:     record,
+				Value:      ip,
+				InstanceID: details.EC2InstanceID,
+				Domain:     config.Domain,
+				Region:     evt.Region,
+			}
+
 			switch lambda.DetermineAutoScalingEventType(evt.DetailType) {
 			case lambda.AutoScalingEventLaunch:
 				log.Printf("Creating IP based DNS record for %q", details.EC2InstanceID)
+				if err := aws.CreateIPRecord(ipRecordConfig); err != nil {
+					log.Printf("Unable to create record: %q: %v", record, err)
+					return err
+				}
 			case lambda.AutoScalingEventTerminate:
 				log.Printf("Removing IP based DNS record for %q", details.EC2InstanceID)
+
+				if err := aws.DeleteIPRecord(ipRecordConfig); err != nil {
+					log.Printf("Unable to create record: %q: %v", record, err)
+					return err
+				}
 			}
 		}
 

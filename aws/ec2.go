@@ -1,6 +1,8 @@
 package aws
 
 import (
+	"errors"
+
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
@@ -105,6 +107,30 @@ func HydrateInstances(instances []string, region string) (*Resource, error) {
 	return &Resource{
 		InstancesByAvailabilityZone: azInstances,
 	}, nil
+}
+
+func LookupIPAddress(instanceID string, region string) (string, error) {
+	svc := ec2.New(session.New(), aws.NewConfig().WithRegion(region))
+	resp, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{
+		InstanceIds: []string{aws.String(instanceID)},
+	})
+
+	if err != nil {
+		return "", err
+	}
+
+	var ip string
+	for _, r := range resp.Reservations {
+		for _, i := range r.Instances {
+			ip = *i.PrivateIpAddress
+		}
+	}
+
+	if len(ip) == 0 {
+		return "", errors.New("No IP Address found")
+	}
+
+	return ip, nil
 }
 
 // Resource represents data structures required for processing
