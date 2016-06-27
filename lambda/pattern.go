@@ -5,6 +5,11 @@ import (
 	"text/template"
 )
 
+var (
+	// IPRecordPattern holds the pattern format for an IP record
+	IPRecordPattern Pattern = "ip-{{.IP}}.{{.Region}}.i.{{.Domain}}"
+)
+
 // Pattern is a holder for a DNS hostname record format
 type Pattern string
 

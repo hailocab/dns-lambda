@@ -1,53 +1,110 @@
 package main
 
 import (
+	"encoding/json"
+	"errors"
+	"flag"
 	"fmt"
 	"log"
+	"os"
 	"regexp"
+	"strings"
 
 	"github.com/hailocab/dns-lambda/aws"
-	"github.com/hailocab/dns-lambda/cloudwatch"
 	"github.com/hailocab/dns-lambda/lambda"
 
 	"github.com/apex/go-apex"
-	// "github.com/k0kubun/pp"
+	"github.com/apex/go-apex/cloudwatch"
 )
 
+var (
+	configFile string
+)
+
+func init() {
+	flagSet := flag.NewFlagSet("lambda", flag.ContinueOnError)
+	flagSet.StringVar(&configFile, "config-file", lambda.DefaultConfigFile, "Location of config file")
+	if err := flagSet.Parse(os.Args[1:]); err != nil {
+		os.Exit(1)
+	}
+
+	log.SetOutput(os.Stderr)
+}
+
 func main() {
+	log.Printf("Using log file: %s", configFile)
+
 	cloudwatch.HandleFunc(func(evt *cloudwatch.Event, ctx *apex.Context) error {
-		config, err := lambda.LoadConfig("config.json")
-		if err != nil {
+		if evt.Source != "aws.autoscaling" {
+			return errors.New("Not an autoscaling event")
+		}
+
+		var details cloudwatch.AutoScalingGroupDetail
+		if err := json.Unmarshal(evt.Detail, &details); err != nil {
+			log.Printf("Unable to unmarshal detail body: %v", err)
 			return err
 		}
 
-		asgName, ok := evt.Detail.Get("AutoScalingGroupName")
-		if !ok {
-			return fmt.Errorf("Error finding ASG name")
-		}
-
-		log.Printf("Trying to update records for %q", asgName.(string))
-
-		instances, err := aws.FindHealthyAutoScalingGroupInstances(asgName.(string), evt.Region)
+		config, err := lambda.LoadConfig(configFile)
 		if err != nil {
-			return fmt.Errorf("Unable to find healthy instances for %q: %v", asgName.(string), err)
+			log.Printf("Config error: %v", err)
+			return err
 		}
 
-		log.Printf("Instances found for %q: %v", asgName.(string), instances)
+		if config.CreateIPRecords {
+			ip, err := aws.LookupIPAddress(details.EC2InstanceID, evt.Region)
+			if err != nil {
+				log.Errorf("Unable to find IP for %q: %v", details.EC2InstanceID, err)
+				return err
+			}
 
-		resource, err := aws.FindInstances(instances, evt.Region)
+			record := lambda.IPRecordPattern.Parse(map[string]string{
+				"IP":     strings.Replace(ip, ".", "-", -1),
+				"Region": evt.Region,
+				"Domain": config.Domain,
+			})
+
+			ipRecordConfig := &aws.IPRecordConfig{
+				Zone:       config.HostedZoneID,
+				Record:     record,
+				Value:      ip,
+				InstanceID: details.EC2InstanceID,
+				Domain:     config.Domain,
+				Region:     evt.Region,
+			}
+
+			switch lambda.DetermineAutoScalingEventType(evt.DetailType) {
+			case lambda.AutoScalingEventLaunch:
+				log.Printf("Creating IP based DNS record for %q", details.EC2InstanceID)
+				if err := aws.CreateIPRecord(ipRecordConfig); err != nil {
+					log.Printf("Unable to create record: %q: %v", record, err)
+					return err
+				}
+			case lambda.AutoScalingEventTerminate:
+				log.Printf("Removing IP based DNS record for %q", details.EC2InstanceID)
+
+				if err := aws.DeleteIPRecord(ipRecordConfig); err != nil {
+					log.Printf("Unable to create record: %q: %v", record, err)
+					return err
+				}
+			}
+		}
+
+		log.Printf("Finding instances for %q in %q", details.AutoScalingGroupName, evt.Region)
+		resource, err := aws.FindInstances(details.AutoScalingGroupName, evt.Region)
 		if err != nil {
-			return fmt.Errorf("Unable to find instances %q: %v", asgName.(string), err)
+			log.Printf("Unable to find instances for %q: %v", details.AutoScalingGroupName, err)
+			return err
 		}
 
-		azIPs := map[string][]string{}
 		var (
+			azIPs  = map[string][]string{}
 			allIPs []string
 			role   string
 		)
 
 		roleRE := regexp.MustCompile(fmt.Sprintf("-%s", config.EnvironmentName))
-		role = roleRE.ReplaceAllLiteralString(asgName.(string), "")
-
+		role = roleRE.ReplaceAllLiteralString(details.AutoScalingGroupName, "")
 		for az, instances := range resource.InstancesByAvailabilityZone {
 			azIPs[az] = []string{}
 
@@ -60,7 +117,7 @@ func main() {
 			p, ok := config.Patterns["az"]
 			if ok {
 				dns, err := p.Parse(map[string]string{
-					"AutoScalingGroup": asgName.(string),
+					"AutoScalingGroup": details.AutoScalingGroupName,
 					"Role":             role,
 					"AvailabilityZone": az,
 					"EnvironmentName":  config.EnvironmentName,
@@ -72,9 +129,9 @@ func main() {
 
 				if len(azIPs[az]) == 0 {
 					log.Printf("Tring to delete DNS record for: %s", dns)
-					aws.DeleteRecord(config.HostedZone, dns)
+					aws.DeleteRecord(config.HostedZoneID, dns)
 				} else {
-					if err := aws.CreateRecord(config.HostedZone, dns, azIPs[az]); err != nil {
+					if err := aws.CreateRecord(config.HostedZoneID, dns, azIPs[az]); err != nil {
 						return fmt.Errorf("Unable to create AZ record %q: %v (%v)", dns, azIPs[az], err)
 					}
 				}
@@ -84,7 +141,7 @@ func main() {
 		p, ok := config.Patterns["region"]
 		if ok {
 			dns, err := p.Parse(map[string]string{
-				"AutoScalingGroup": asgName.(string),
+				"AutoScalingGroup": details.AutoScalingGroupName,
 				"Role":             role,
 				"Region":           evt.Region,
 				"EnvironmentName":  config.EnvironmentName,
@@ -95,10 +152,10 @@ func main() {
 
 			if len(allIPs) == 0 {
 				log.Printf("Tring to delete DNS record for: %s", dns)
-				err := aws.DeleteRecord(config.HostedZone, dns)
+				err := aws.DeleteRecord(config.HostedZoneID, dns)
 				log.Printf("Delete: %v", err)
 			} else {
-				if err := aws.CreateRecord(config.HostedZone, dns, allIPs); err != nil {
+				if err := aws.CreateRecord(config.HostedZoneID, dns, allIPs); err != nil {
 					return fmt.Errorf("Unable to create region record %q: %v ", dns, allIPs)
 				}
 			}
