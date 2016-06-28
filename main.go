@@ -54,11 +54,11 @@ func main() {
 		if config.CreateIPRecords {
 			ip, err := aws.LookupIPAddress(details.EC2InstanceID, evt.Region)
 			if err != nil {
-				log.Errorf("Unable to find IP for %q: %v", details.EC2InstanceID, err)
+				log.Printf("Unable to find IP for %q: %v", details.EC2InstanceID, err)
 				return err
 			}
 
-			record := lambda.IPRecordPattern.Parse(map[string]string{
+			record, _ := lambda.IPRecordPattern.Parse(map[string]string{
 				"IP":     strings.Replace(ip, ".", "-", -1),
 				"Region": evt.Region,
 				"Domain": config.Domain,
