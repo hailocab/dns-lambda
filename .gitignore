@@ -2,3 +2,5 @@
 build
 
 terraform.tfstate*
+terraform/eu-west-1/.terraform
+*.tfvars
