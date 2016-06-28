@@ -1,5 +1,6 @@
 {
   "hostedzone": "__HOSTEDZONEID__",
+  "create_ip_records": true,
   "patterns": {
     "az": "{{.Role}}.{{.AvailabilityZone}}.i.__DOMAIN__",
     "region": "{{.Role}}.{{.Region}}.i.__DOMAIN__"

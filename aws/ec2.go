@@ -112,7 +112,7 @@ func HydrateInstances(instances []string, region string) (*Resource, error) {
 func LookupIPAddress(instanceID string, region string) (string, error) {
 	svc := ec2.New(session.New(), aws.NewConfig().WithRegion(region))
 	resp, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{
-		InstanceIds: []string{aws.String(instanceID)},
+		InstanceIds: []*string{aws.String(instanceID)},
 	})
 
 	if err != nil {

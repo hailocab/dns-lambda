@@ -17,7 +17,7 @@ func CreateRecord(zone string, record string, dest []string) error {
 
 // CreateTXTRecord creates a txt record
 func CreateTXTRecord(zone string, record string, value string) error {
-	return CreateResourceRecordType(zone, "TXT", record, []string{dest})
+	return CreateResourceRecordType(zone, "TXT", record, []string{value})
 }
 
 // CreateResourceRecordType creates a record of a given type
@@ -60,14 +60,14 @@ func DeleteRecord(zone string, record string) error {
 }
 
 // DeleteResourceRecordType deletes a record of a given type
-func DeleteResourceRecordType(zong string, recordType string, record string, values []string) error {
+func DeleteResourceRecordType(zone string, recordType string, record string, values []string) error {
 	recs := []*route53.ResourceRecord{}
 	for _, v := range values {
 		recs = append(recs, &route53.ResourceRecord{Value: aws.String(v)})
 	}
 
 	svc := route53.New(session.New(), aws.NewConfig())
-	_, err = svc.ChangeResourceRecordSets(&route53.ChangeResourceRecordSetsInput{
+	_, err := svc.ChangeResourceRecordSets(&route53.ChangeResourceRecordSetsInput{
 		ChangeBatch: &route53.ChangeBatch{
 			Changes: []*route53.Change{
 				{
@@ -132,17 +132,6 @@ func CreateIPRecord(config *IPRecordConfig) error {
 	txt := fmt.Sprintf("%s.%s", config.InstanceID, config.Domain)
 
 	return CreateResourceRecordType(config.Zone, "TXT", txt, []string{config.Record})
-}
-
-// CreateIPRecord creates an IP record
-func CreateIPRecord(config *IPRecordConfig) error {
-	if err := CreateResourceRecordType(config.Zone, "A", config.Record, []string{config.Value}); err != nil {
-		return err
-	}
-
-	txt := fmt.Sprintf("%s.%s.%s", config.InstanceID, config.Region, config.Domain)
-
-	return CreateResourceRecordType(config.Zone, "TXT", txt, []string{config.Value})
 }
 
 // DeleteIPRecord creates an IP record
