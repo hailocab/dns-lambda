@@ -8,6 +8,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/route53"
+
+	"github.com/k0kubun/pp"
 )
 
 // CreateRecord for hosted zone id
@@ -17,7 +19,7 @@ func CreateRecord(zone string, record string, dest []string) error {
 
 // CreateTXTRecord creates a txt record
 func CreateTXTRecord(zone string, record string, value string) error {
-	return CreateResourceRecordType(zone, "TXT", record, []string{value})
+	return CreateResourceRecordType(zone, "TXT", record, []string{fmt.Sprintf("\"%s\"", value)})
 }
 
 // CreateResourceRecordType creates a record of a given type
@@ -27,8 +29,7 @@ func CreateResourceRecordType(zone string, recordType string, record string, des
 		recs = append(recs, &route53.ResourceRecord{Value: aws.String(ip)})
 	}
 
-	svc := route53.New(session.New(), aws.NewConfig())
-	_, err := svc.ChangeResourceRecordSets(&route53.ChangeResourceRecordSetsInput{
+	req := &route53.ChangeResourceRecordSetsInput{
 		ChangeBatch: &route53.ChangeBatch{
 			Changes: []*route53.Change{
 				{
@@ -44,7 +45,12 @@ func CreateResourceRecordType(zone string, recordType string, record string, des
 			Comment: aws.String("ResourceDescription"),
 		},
 		HostedZoneId: aws.String(zone),
-	})
+	}
+
+	pp.Print(req)
+
+	svc := route53.New(session.New(), aws.NewConfig())
+	_, err := svc.ChangeResourceRecordSets(req)
 
 	return err
 }
@@ -66,8 +72,7 @@ func DeleteResourceRecordType(zone string, recordType string, record string, val
 		recs = append(recs, &route53.ResourceRecord{Value: aws.String(v)})
 	}
 
-	svc := route53.New(session.New(), aws.NewConfig())
-	_, err := svc.ChangeResourceRecordSets(&route53.ChangeResourceRecordSetsInput{
+	req := &route53.ChangeResourceRecordSetsInput{
 		ChangeBatch: &route53.ChangeBatch{
 			Changes: []*route53.Change{
 				{
@@ -83,7 +88,12 @@ func DeleteResourceRecordType(zone string, recordType string, record string, val
 			Comment: aws.String("ResourceDescription"),
 		},
 		HostedZoneId: aws.String(zone),
-	})
+	}
+
+	pp.Print(req)
+
+	svc := route53.New(session.New(), aws.NewConfig())
+	_, err := svc.ChangeResourceRecordSets(req)
 
 	return err
 }
@@ -129,9 +139,9 @@ func CreateIPRecord(config *IPRecordConfig) error {
 		return err
 	}
 
-	txt := fmt.Sprintf("%s.%s", config.InstanceID, config.Domain)
+	txt := fmt.Sprintf("%s.%s.%s", config.InstanceID, config.Region, config.Domain)
 
-	return CreateResourceRecordType(config.Zone, "TXT", txt, []string{config.Record})
+	return CreateResourceRecordType(config.Zone, "TXT", txt, []string{fmt.Sprintf("\"%s\"", config.Value)})
 }
 
 // DeleteIPRecord creates an IP record
@@ -143,6 +153,10 @@ func DeleteIPRecord(config *IPRecordConfig) error {
 
 	if err := DeleteResourceRecordType(config.Zone, "A", config.Record, txtValue); err != nil {
 		return err
+	}
+
+	for i, v := range txtValue {
+		txtValue[i] = fmt.Sprintf("\"%s\"", v)
 	}
 
 	txt := fmt.Sprintf("%s.%s.%s", config.InstanceID, config.Region, config.Domain)

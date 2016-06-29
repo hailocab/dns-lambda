@@ -2,6 +2,7 @@ package aws
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -109,7 +110,13 @@ func HydrateInstances(instances []string, region string) (*Resource, error) {
 	}, nil
 }
 
-func LookupIPAddress(instanceID string, region string) (string, error) {
+func LookupIPAddress(instanceID string, region string, domain string) (string, error) {
+	txt := fmt.Sprintf("%s.%s.%s", instanceID, region, domain)
+	values, err := ResolveTXTRecord(txt)
+	if len(values) != 0 {
+		return values[0], nil
+	}
+
 	svc := ec2.New(session.New(), aws.NewConfig().WithRegion(region))
 	resp, err := svc.DescribeInstances(&ec2.DescribeInstancesInput{
 		InstanceIds: []*string{aws.String(instanceID)},
@@ -122,7 +129,9 @@ func LookupIPAddress(instanceID string, region string) (string, error) {
 	var ip string
 	for _, r := range resp.Reservations {
 		for _, i := range r.Instances {
-			ip = *i.PrivateIpAddress
+			if i.PrivateIpAddress != nil {
+				ip = *i.PrivateIpAddress
+			}
 		}
 	}
 

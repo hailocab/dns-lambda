@@ -64,15 +64,11 @@ resource "aws_iam_role_policy" "role" {
   "Statement": [
     {
       "Action": [
-        "ec2:Describe*",
-        "autoscaling:Describe*",
-        "route53:*"
+        "*"
       ],
       "Effect": "Allow",
       "Resource": [
-        "arn:aws:route53:::*",
-        "arn:aws:autoscaling:${var.aws_region}::*",
-        "arn:aws:ec2:${var.aws_region}::*"
+         "*"
       ]
     }
   ]
@@ -81,9 +77,10 @@ EOF
 }
 
 resource "aws_lambda_function" "dns_lambda" {
-  filename      = "${var.filename}"
-  function_name = "dns_lambda"
-  role          = "${aws_iam_role.role.arn}"
-  handler       = "index.handle"
-  runtime       = "nodejs4.3"
+  filename         = "${var.filename}"
+  function_name    = "dns_lambda"
+  role             = "${aws_iam_role.role.arn}"
+  handler          = "index.handle"
+  runtime          = "nodejs4.3"
+  source_code_hash = "${base64sha256(file(var.filename))}"
 }

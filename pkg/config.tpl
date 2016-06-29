@@ -1,5 +1,5 @@
 {
-  "hostedzone": "__HOSTEDZONEID__",
+  "hosted_zone_id": "__HOSTEDZONEID__",
   "create_ip_records": true,
   "patterns": {
     "az": "{{.Role}}.{{.AvailabilityZone}}.i.__DOMAIN__",

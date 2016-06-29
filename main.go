@@ -15,6 +15,8 @@ import (
 
 	"github.com/apex/go-apex"
 	"github.com/apex/go-apex/cloudwatch"
+
+	"github.com/k0kubun/pp"
 )
 
 var (
@@ -51,8 +53,10 @@ func main() {
 			return err
 		}
 
+		pp.Print(config)
+
 		if config.CreateIPRecords {
-			ip, err := aws.LookupIPAddress(details.EC2InstanceID, evt.Region)
+			ip, err := aws.LookupIPAddress(details.EC2InstanceID, evt.Region, config.Domain)
 			if err != nil {
 				log.Printf("Unable to find IP for %q: %v", details.EC2InstanceID, err)
 				return err
